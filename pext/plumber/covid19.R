@@ -486,6 +486,187 @@ function(req, res, api_key, prelim=FALSE, lang="nb", location_code="norge"){
 }
 
 
+#* hc_key_numbers_v2 ----
+#* @param location_code location code ("norge" is a common choice)
+#* @param lang nb or en
+#* @param prelim TRUE or FALSE
+#* @param api_key api_key
+#* @get /hc_key_numbers_v2
+function(req, res, api_key, prelim=FALSE, lang="nb", location_code="norge"){
+  stopifnot(prelim %in% c(T,F))
+  stopifnot(lang %in% c("nb", "en"))
+  stopifnot(location_code %in% c("norge"))
+
+  d <- pool %>% dplyr::tbl(
+    ifelse(
+      prelim,
+      "prelim_data_covid19_key_numbers",
+      "data_covid19_key_numbers"
+    )) %>%
+    dplyr::select(tag_outcome,value) %>%
+    dplyr::collect()
+  setDT(d)
+
+  tested_n <- d[tag_outcome=="antall_tested", value]
+  tested_change   <- d[tag_outcome=="antall_tested_change", value]
+  msis_n  <- d[tag_outcome=="antall_msis", value]
+  msis_change <- d[tag_outcome=="antall_msis_change", value]
+  hosp_n <- d[tag_outcome=="antall_hosp", value]
+  hosp_change <- d[tag_outcome=="antall_hosp_change", value]
+  icu_n <- d[tag_outcome=="antall_icu", value]
+  icu_change   <- d[tag_outcome=="antall_icu_change", value]
+  death_n  <- d[tag_outcome=="antall_death", value]
+  death_change <- d[tag_outcome=="antall_death_change", value]
+
+  last_mod <- pool %>% dplyr::tbl("rundate") %>%
+    dplyr::filter(task==!!ifelse(prelim,"prelim_data_covid19_daily_report","data_covid19_daily_report")) %>%
+    dplyr::select("date") %>%
+    dplyr::collect()
+  last_mod <- last_mod$date
+  last_mod <- format.Date(last_mod, "%d/%m/%Y")
+
+  if(lang == "nb"){
+    retval <- list(
+      figures = rbind(
+        data.frame(
+          key = "tested_n",
+          number = tested_n,
+          description = "total tested",
+          updated = last_mod
+        ),
+
+        data.frame(
+          key = "tested_change",
+          number = tested_change,
+          description = "change in tested",
+          updated = last_mod
+        ),
+
+        data.frame(
+          key = "msis_n",
+          number = msis_n ,
+          description = "total msis",
+          updated = last_mod
+        ),
+        data.frame(
+          key = "msis_change",
+          number = msis_change,
+          description = "change in msis",
+          updated = last_mod
+        ),
+        data.frame(
+          key = "hosp_n",
+          number = hosp_n,
+          description = "total hospitaled Covid-19 as main cause",
+          updated = last_mod
+        ),
+        data.frame(
+          key = "hosp_change",
+          number = hosp_change,
+          description = "change in hospitaled Covid-19 as main cause",
+          updated = last_mod
+        ),
+
+        data.frame(
+          key = "icu_n",
+          number = icu_n,
+          description = "total icu",
+          updated = last_mod
+        ),
+        data.frame(
+          key = "icu_change",
+          number = icu_change,
+          description = "change in icu",
+          updated = last_mod
+        ),
+        data.frame(
+          key = "death_n",
+          number = death_n,
+          description = "Total death",
+          updated = last_mod
+        ),
+        data.frame(
+          key = "death_change",
+          number = death_change,
+          description = "change in total death",
+          updated = last_mod
+        )
+      )
+    )
+  } else {
+    retval <- list(
+      figures = rbind(
+        data.frame(
+          key = "tested_n",
+          number = tested_n,
+          description = "total tested",
+          updated = last_mod
+        ),
+
+        data.frame(
+          key = "tested_change",
+          number = tested_change ,
+          description = "change in tested",
+          updated = last_mod
+        ),
+
+        data.frame(
+          key = "msis_n",
+          number = msis_n ,
+          description = "total msis",
+          updated = last_mod
+        ),
+        data.frame(
+          key = "msis_change",
+          number = msis_change,
+          description = "change in msis",
+          updated = last_mod
+        ),
+        data.frame(
+          key = "hosp_n",
+          number = hosp_n,
+          description = "total hospitaled Covid-19 as main cause",
+          updated = last_mod
+        ),
+        data.frame(
+          key = "hosp_change",
+          number = hosp_change,
+          description = "change in hospitaled Covid-19 as main cause",
+          updated = last_mod
+        ),
+
+        data.frame(
+          key = "icu_n",
+          number = icu_n,
+          description = "total icu",
+          updated = last_mod
+        ),
+        data.frame(
+          key = "icu_change",
+          number = icu_change,
+          description = "change in icu",
+          updated = last_mod
+        ),
+        data.frame(
+          key = "death_n",
+          number = death_n,
+          description = "Total death",
+          updated = last_mod
+        ),
+        data.frame(
+          key = "death_change",
+          number = death_change,
+          description = "change in total death",
+          updated = last_mod
+        )
+      )
+    )
+  }
+}
+
+
+
+
 
 
 #* (B) hc_lab_pos_neg_by_time ----
