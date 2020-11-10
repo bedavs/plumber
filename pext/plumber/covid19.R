@@ -507,16 +507,25 @@ function(req, res, api_key, prelim=FALSE, lang="nb", location_code="norge"){
     dplyr::collect()
   setDT(d)
 
-  tested_n <- d[tag_outcome=="antall_tested", value]
-  tested_change   <- d[tag_outcome=="antall_tested_change", value]
-  msis_n  <- d[tag_outcome=="antall_msis", value]
-  msis_change <- d[tag_outcome=="antall_msis_change", value]
-  hosp_n <- d[tag_outcome=="antall_hosp", value]
-  hosp_change <- d[tag_outcome=="antall_hosp_change", value]
-  icu_n <- d[tag_outcome=="antall_icu", value]
-  icu_change   <- d[tag_outcome=="antall_icu_change", value]
-  death_n  <- d[tag_outcome=="antall_death", value]
-  death_change <- d[tag_outcome=="antall_death_change", value]
+  tested_since <- format.Date(d[tag_outcome=="n_tested_since", value], "%d/%m/%Y")
+  tested_n <- d[tag_outcome=="n_tested_value", value]
+  tested_change   <- d[tag_outcome=="n_tested_change", value]
+
+  msis_since  <- format.Date(d[tag_outcome=="n_msis_since", value], "%d/%m/%Y")
+  msis_n  <- d[tag_outcome=="n_msis_value", value]
+  msis_change <- d[tag_outcome=="n_msis_change", value]
+
+  hosp_since <- format.Date(d[tag_outcome=="n_hosp_since", value], "%d/%m/%Y")
+  hosp_n <- d[tag_outcome=="n_hosp_value", value]
+  hosp_change <- d[tag_outcome=="n_hosp_change", value]
+
+  icu_since <- format.Date(d[tag_outcome=="n_icu_since", value], "%d/%m/%Y")
+  icu_n <- d[tag_outcome=="n_icu_value", value]
+  icu_change   <- d[tag_outcome=="n_icu_change", value]
+
+  death_since  <- format.Date(d[tag_outcome=="n_death_since", value], "%d/%m/%Y")
+  death_n  <- d[tag_outcome=="n_death_value", value]
+  death_change <- d[tag_outcome=="n_death_change", value]
 
   last_mod <- pool %>% dplyr::tbl("rundate") %>%
     dplyr::filter(task==!!ifelse(prelim,"prelim_data_covid19_daily_report","data_covid19_daily_report")) %>%
@@ -529,67 +538,46 @@ function(req, res, api_key, prelim=FALSE, lang="nb", location_code="norge"){
     retval <- list(
       figures = rbind(
         data.frame(
-          key = "tested_n",
+          key = "cum_n_tested",
           number = tested_n,
-          description = "total tested",
-          updated = last_mod
+          description = "Testet",
+          updated = last_mod,
+          change = tested_change,
+          since = tested_since
         ),
 
         data.frame(
-          key = "tested_change",
-          number = tested_change,
-          description = "change in tested",
-          updated = last_mod
-        ),
-
-        data.frame(
-          key = "msis_n",
+          key = "cum_n_msis",
           number = msis_n ,
-          description = "total msis",
-          updated = last_mod
+          description = "Meldte tilfeller",
+          updated = last_mod,
+          change = msis_change,
+          since = msis_since
         ),
         data.frame(
-          key = "msis_change",
-          number = msis_change,
-          description = "change in msis",
-          updated = last_mod
-        ),
-        data.frame(
-          key = "hosp_n",
+          key = "cum_n_hospital_any_cause",
           number = hosp_n,
-          description = "total hospitaled Covid-19 as main cause",
-          updated = last_mod
+          description = "Innlagt sykehus",
+          updated = last_mod,
+          change = hosp_change,
+          since = hosp_since
         ),
         data.frame(
-          key = "hosp_change",
-          number = hosp_change,
-          description = "change in hospitaled Covid-19 as main cause",
-          updated = last_mod
+          key = "cum_n_icu",
+          number = icu_n,
+          description = "Innlagt intensiv",
+          updated = last_mod,
+          change = icu_change,
+          since = icu_since
         ),
 
         data.frame(
-          key = "icu_n",
-          number = icu_n,
-          description = "total icu",
-          updated = last_mod
-        ),
-        data.frame(
-          key = "icu_change",
-          number = icu_change,
-          description = "change in icu",
-          updated = last_mod
-        ),
-        data.frame(
-          key = "death_n",
+          key = "cum_n_deaths",
           number = death_n,
-          description = "Total death",
-          updated = last_mod
-        ),
-        data.frame(
-          key = "death_change",
-          number = death_change,
-          description = "change in total death",
-          updated = last_mod
+          description = glue::glue("D{fhi::nb$oe}de"),
+          updated = last_mod,
+          change = death_change,
+          since = death_since
         )
       )
     )
@@ -597,67 +585,46 @@ function(req, res, api_key, prelim=FALSE, lang="nb", location_code="norge"){
     retval <- list(
       figures = rbind(
         data.frame(
-          key = "tested_n",
+          key = "cum_n_tested",
           number = tested_n,
-          description = "total tested",
-          updated = last_mod
+          description = "Testet",
+          updated = last_mod,
+          change = tested_change,
+          since = tested_since
         ),
 
         data.frame(
-          key = "tested_change",
-          number = tested_change ,
-          description = "change in tested",
-          updated = last_mod
-        ),
-
-        data.frame(
-          key = "msis_n",
+          key = "cum_n_msis",
           number = msis_n ,
-          description = "total msis",
-          updated = last_mod
+          description = "Meldte tilfeller",
+          updated = last_mod,
+          change = msis_change,
+          since = msis_since
         ),
         data.frame(
-          key = "msis_change",
-          number = msis_change,
-          description = "change in msis",
-          updated = last_mod
-        ),
-        data.frame(
-          key = "hosp_n",
+          key = "cum_n_hospital_any_cause",
           number = hosp_n,
-          description = "total hospitaled Covid-19 as main cause",
-          updated = last_mod
+          description = "Innlagt sykehus",
+          updated = last_mod,
+          change = hosp_change,
+          since = hosp_since
         ),
         data.frame(
-          key = "hosp_change",
-          number = hosp_change,
-          description = "change in hospitaled Covid-19 as main cause",
-          updated = last_mod
+          key = "cum_n_icu",
+          number = icu_n,
+          description = "Innlagt intensiv",
+          updated = last_mod,
+          change = icu_change,
+          since = icu_since
         ),
 
         data.frame(
-          key = "icu_n",
-          number = icu_n,
-          description = "total icu",
-          updated = last_mod
-        ),
-        data.frame(
-          key = "icu_change",
-          number = icu_change,
-          description = "change in icu",
-          updated = last_mod
-        ),
-        data.frame(
-          key = "death_n",
+          key = "cum_n_deaths",
           number = death_n,
-          description = "Total death",
-          updated = last_mod
-        ),
-        data.frame(
-          key = "death_change",
-          number = death_change,
-          description = "change in total death",
-          updated = last_mod
+          description = glue::glue("D{fhi::nb$oe}de"),
+          updated = last_mod,
+          change = death_change,
+          since = death_since
         )
       )
     )
