@@ -281,8 +281,8 @@ function(req, res, api_key, prelim=FALSE, lang="nb", location_code="norge"){
       "prelim_data_covid19_dynamic_text",
       "data_covid19_dynamic_text"
     )) %>%
-     dplyr::select(tag_outcome,value) %>%
-     dplyr::collect()
+    dplyr::select(tag_outcome,value) %>%
+    dplyr::collect()
   setDT(d)
 
   death_average_age <- d[tag_outcome=="death_average_age", value]
@@ -484,6 +484,154 @@ function(req, res, api_key, prelim=FALSE, lang="nb", location_code="norge"){
     )
   }
 }
+
+
+#* hc_key_numbers_v2 ----
+#* @param location_code location code ("norge" is a common choice)
+#* @param lang nb or en
+#* @param prelim TRUE or FALSE
+#* @param api_key api_key
+#* @get /hc_key_numbers_v2
+function(req, res, api_key, prelim=FALSE, lang="nb", location_code="norge"){
+  stopifnot(prelim %in% c(T,F))
+  stopifnot(lang %in% c("nb", "en"))
+  stopifnot(location_code %in% c("norge"))
+
+  d <- pool %>% dplyr::tbl(
+    ifelse(
+      prelim,
+      "prelim_data_covid19_key_numbers",
+      "data_covid19_key_numbers"
+    )) %>%
+    dplyr::select(tag_outcome,value) %>%
+    dplyr::collect()
+  setDT(d)
+
+  tested_since <- format.Date(d[tag_outcome=="n_tested_since", value], "%d/%m/%Y")
+  tested_n <- d[tag_outcome=="n_tested_value", value]
+  tested_change   <- d[tag_outcome=="n_tested_change", value]
+
+  msis_since  <- format.Date(d[tag_outcome=="n_msis_since", value], "%d/%m/%Y")
+  msis_n  <- d[tag_outcome=="n_msis_value", value]
+  msis_change <- d[tag_outcome=="n_msis_change", value]
+
+  hosp_since <- format.Date(d[tag_outcome=="n_hosp_since", value], "%d/%m/%Y")
+  hosp_n <- d[tag_outcome=="n_hosp_value", value]
+  hosp_change <- d[tag_outcome=="n_hosp_change", value]
+
+  icu_since <- format.Date(d[tag_outcome=="n_icu_since", value], "%d/%m/%Y")
+  icu_n <- d[tag_outcome=="n_icu_value", value]
+  icu_change   <- d[tag_outcome=="n_icu_change", value]
+
+  death_since  <- format.Date(d[tag_outcome=="n_death_since", value], "%d/%m/%Y")
+  death_n  <- d[tag_outcome=="n_death_value", value]
+  death_change <- d[tag_outcome=="n_death_change", value]
+
+  last_mod <- pool %>% dplyr::tbl("rundate") %>%
+    dplyr::filter(task==!!ifelse(prelim,"prelim_data_covid19_daily_report","data_covid19_daily_report")) %>%
+    dplyr::select("date") %>%
+    dplyr::collect()
+  last_mod <- last_mod$date
+  last_mod <- format.Date(last_mod, "%d/%m/%Y")
+
+  if(lang == "nb"){
+    retval <- list(
+      figures = rbind(
+        data.frame(
+          key = "cum_n_tested",
+          number = tested_n,
+          description = "Testet",
+          updated = last_mod,
+          change = tested_change,
+          since = tested_since
+        ),
+
+        data.frame(
+          key = "cum_n_msis",
+          number = msis_n ,
+          description = "Meldte tilfeller",
+          updated = last_mod,
+          change = msis_change,
+          since = msis_since
+        ),
+        data.frame(
+          key = "cum_n_hospital_any_cause",
+          number = hosp_n,
+          description = "Innlagt sykehus",
+          updated = last_mod,
+          change = hosp_change,
+          since = hosp_since
+        ),
+        data.frame(
+          key = "cum_n_icu",
+          number = icu_n,
+          description = "Innlagt intensiv",
+          updated = last_mod,
+          change = icu_change,
+          since = icu_since
+        ),
+
+        data.frame(
+          key = "cum_n_deaths",
+          number = death_n,
+          description = glue::glue("D{fhi::nb$oe}de"),
+          updated = last_mod,
+          change = death_change,
+          since = death_since
+        )
+      )
+    )
+  } else {
+    retval <- list(
+      figures = rbind(
+        data.frame(
+          key = "cum_n_tested",
+          number = tested_n,
+          description = "Testet",
+          updated = last_mod,
+          change = tested_change,
+          since = tested_since
+        ),
+
+        data.frame(
+          key = "cum_n_msis",
+          number = msis_n ,
+          description = "Meldte tilfeller",
+          updated = last_mod,
+          change = msis_change,
+          since = msis_since
+        ),
+        data.frame(
+          key = "cum_n_hospital_any_cause",
+          number = hosp_n,
+          description = "Innlagt sykehus",
+          updated = last_mod,
+          change = hosp_change,
+          since = hosp_since
+        ),
+        data.frame(
+          key = "cum_n_icu",
+          number = icu_n,
+          description = "Innlagt intensiv",
+          updated = last_mod,
+          change = icu_change,
+          since = icu_since
+        ),
+
+        data.frame(
+          key = "cum_n_deaths",
+          number = death_n,
+          description = glue::glue("D{fhi::nb$oe}de"),
+          updated = last_mod,
+          change = death_change,
+          since = death_since
+        )
+      )
+    )
+  }
+}
+
+
 
 
 
@@ -930,6 +1078,115 @@ function(req, res, api_key, prelim=FALSE, lang="nb", location_code="norge"){
   )
 }
 
+#* (L) hc_sysvak_vacc_by_time_location_dose ----
+#* @param location_code location code ("norge" is a common choice)
+#* @param granularity_time day or week
+#* @param lang nb or en
+#* @param prelim TRUE or FALSE
+#* @param api_key api_key
+#* @get /hc_sysvak_vacc_by_time_location_dose
+#* @serializer highcharts
+function(req, res, api_key, prelim=F, lang="nb", granularity_time, location_code){
+  stopifnot(prelim %in% c(T,F))
+  stopifnot(lang %in% c("nb", "en"))
+  stopifnot(granularity_time %in% c("day","week"))
+
+  valid_locations <- unique(fhidata::norway_locations_b2020$county_code)
+  valid_locations <- stringr::str_remove(valid_locations, "county")
+  valid_locations <- c("norge", valid_locations)
+  stopifnot(location_code %in% valid_locations)
+
+  if(stringr::str_length(location_code)==2) location_code <- paste0("county",location_code)
+
+  d <- pool %>% dplyr::tbl(
+    ifelse(
+      prelim,
+      "prelim_data_covid19_sysvak_by_time_location",
+      "data_covid19_sysvak_by_time_location"
+    )) %>%
+    dplyr::filter(granularity_time == !!granularity_time) %>%
+    dplyr::filter(location_code== !!location_code) %>%
+    dplyr::select(yrwk, date, dosenummer, n) %>%
+    dplyr::collect()
+  setDT(d)
+  d[,date:=as.Date(date)]
+  setorder(d, date)
+
+  d[,cum_n := cumsum(n), by = .(dosenummer)]
+
+  d <- dcast.data.table(d, yrwk+date ~ dosenummer,
+                        value.var = c("n","cum_n"))
+
+  setcolorder(d,c("yrwk",
+                  "date",
+                  "cum_n_forste",
+                  "n_forste",
+                  "cum_n_andre",
+                  "n_andre"))
+
+
+  if(granularity_time=="day"){
+    d[, yrwk:=NULL]
+
+    if(lang=="nb"){
+      setnames(
+        d,
+        c(
+          "Dato",
+          "Kumulativt antall personer vaksinert med 1.dose",
+          "Antall personer vaksinert med 1.dose",
+          "Kumulativt antall personer vaksinert med 2.dose",
+          "Antall personer vaksinert med 2.dose"
+        )
+      )
+    } else if(lang=="en"){
+      setnames(
+        d,
+        c("Date",
+          "Cumulative number of people vaccinated with 1st dose",
+          "Number of people vaccinated with 1st dose",
+          "Cumulative number of people vaccinated with 2nd dose",
+          "Number of people vaccinated with 2nd dose"
+
+        )
+      )
+    }
+  } else {
+    d[, date:=NULL]
+    if(lang=="nb"){
+      setnames(
+        d,
+        c(
+          "Uke",
+          "Kumulativt antall personer vaksinert med 1.dose",
+          "Antall personer vaksinert med 1.dose",
+          "Kumulativt antall personer vaksinert med 2.dose",
+          "Antall personer vaksinert med 2.dose"
+        )
+      )    } else {
+        setnames(
+          d,
+          c(
+            "Week",
+            "Cumulative number of people vaccinated with 1st dose",
+            "Number of people vaccinated with 1st dose",
+            "Cumulative number of people vaccinated with 2nd dose",
+            "Number of people vaccinated with 2nd dose"
+
+          )
+        )    }
+  }
+
+  last_mod <- pool %>% dplyr::tbl("rundate") %>%
+    dplyr::filter(task==!!ifelse(prelim,"prelim_data_covid19_daily_report","data_covid19_daily_report")) %>%
+    dplyr::select("datetime") %>%
+    dplyr::collect()
+
+  list(
+    last_modified = last_mod$datetime,
+    data = d
+  )
+}
 
 
 
@@ -939,6 +1196,121 @@ function(req, res, api_key, prelim=FALSE, lang="nb", location_code="norge"){
 
 
 #* location_code has a "norge"
+
+#* (M) hc_sysvak_vacc_by_time_location ----
+#* @param location_code location code ("norge" is a common choice)
+#* @param granularity_time day or week
+#* @param lang nb or en
+#* @param prelim TRUE or FALSE
+#* @param api_key api_key
+#* @get /hc_sysvak_vacc_by_time_location
+#* @serializer highcharts
+function(req, res, api_key, prelim=F, lang="nb", granularity_time, location_code){
+  stopifnot(prelim %in% c(T,F))
+  stopifnot(lang %in% c("nb", "en"))
+  stopifnot(granularity_time %in% c("day","week"))
+
+  valid_locations <- unique(c(fhidata::norway_locations_b2020$county_code,fhidata::norway_locations_b2020$municip_code))
+  valid_locations <- stringr::str_remove(valid_locations, "county")
+  valid_locations <- stringr::str_remove(valid_locations, "municip")
+
+  valid_locations <- c("norge", valid_locations)
+  stopifnot(location_code %in% valid_locations)
+
+  if(stringr::str_length(location_code)==2) location_code <- paste0("county",location_code)
+
+  d <- pool %>% dplyr::tbl(
+    ifelse(
+      prelim,
+      "prelim_data_covid19_sysvak_by_time_location",
+      "data_covid19_sysvak_by_time_location"
+    )) %>%
+    dplyr::filter(granularity_time == !!granularity_time) %>%
+    dplyr::filter(location_code== !!location_code) %>%
+    dplyr::select(yrwk, date, dosenummer, n) %>%
+    dplyr::collect()
+  setDT(d)
+  d[,date:=as.Date(date)]
+  setorder(d, date)
+
+  d <- d[dosenummer=="forste"]
+
+  d[,cum_n := cumsum(n)]
+
+  d <- dcast.data.table(d, yrwk+date ~ dosenummer,
+                        value.var = c("n","cum_n"))
+
+  setcolorder(d,c("yrwk",
+                  "date",
+                  "cum_n_forste",
+                  "n_forste"))
+
+
+  if(granularity_time=="day"){
+    d[, yrwk:=NULL]
+
+    if(lang=="nb"){
+      setnames(
+        d,
+        c(
+          "Dato",
+          "Kumulativt antall personer vaksinert med 1.dose",
+          "Antall personer vaksinert med 1.dose"
+        )
+      )
+    } else if(lang=="en"){
+      setnames(
+        d,
+        c("Date",
+          "Cumulative number of people vaccinated with 1st dose",
+          "Number of people vaccinated with 1st dose"
+
+        )
+      )
+    }
+  } else {
+    d[, date:=NULL]
+    if(lang=="nb"){
+      setnames(
+        d,
+        c(
+          "Uke",
+          "Kumulativt antall personer vaksinert med 1.dose",
+          "Antall personer vaksinert med 1.dose"
+        )
+      )    } else {
+        setnames(
+          d,
+          c(
+            "Week",
+            "Cumulative number of people vaccinated with 1st dose",
+            "Number of people vaccinated with 1st dose"
+
+          )
+        )    }
+  }
+
+  last_mod <- pool %>% dplyr::tbl("rundate") %>%
+    dplyr::filter(task==!!ifelse(prelim,"prelim_data_covid19_daily_report","data_covid19_daily_report")) %>%
+    dplyr::select("datetime") %>%
+    dplyr::collect()
+
+  list(
+    last_modified = last_mod$datetime,
+    data = d
+  )
+}
+
+
+
+
+
+
+
+
+#* location_code has a "norge"
+
+
 #* SELV (1) hc_sr_symptoms_by_time ----
 #* These are the locations and location names
 #* @param lang nb
@@ -1074,17 +1446,17 @@ function(req, res, api_key, lang="nb", granularity_geo="county", measure="n"){
 
 
   d[
-      fhidata::norway_locations_long_b2020,
-      on="location_code",
-      location_name := location_name
-      ]
+    fhidata::norway_locations_long_b2020,
+    on="location_code",
+    location_name := location_name
+    ]
 
-    d[, location_name := stringr::str_to_lower(location_name)]
+  d[, location_name := stringr::str_to_lower(location_name)]
 
-    d <- d[,.(
-      Fylke = location_name,
-      Antall = n
-    )]
+  d <- d[,.(
+    Fylke = location_name,
+    Antall = n
+  )]
 
   last_mod <- pool %>% dplyr::tbl("rundate") %>%
     dplyr::filter(task=="data_covid19_daily_report") %>%
@@ -1138,7 +1510,7 @@ function(req, res, api_key, lang="nb", location_code="norge"){
   colA = c("n_symps_yesfever_cough_or_breath",
            "n_symps_yesfever_throat_or_nose",
            "n_symps_yesfever_muscle_or_headache",
-            "n_symps_yesfever_gastro_or_taste_smell_or_other")
+           "n_symps_yesfever_gastro_or_taste_smell_or_other")
   colB = c("n_symps_nofever_cough_or_breath",
            "n_symps_nofever_throat_or_nose",
            "n_symps_nofever_muscle_or_headache",
@@ -1146,23 +1518,23 @@ function(req, res, api_key, lang="nb", location_code="norge"){
 
   d = melt(d, measure = list(colA, colB), value.name = c("medfeber", "tenfeber"))
 
-d[variable==1,Symptom:="hoste eller tungpust"]
-d[variable==2,Symptom:=glue::glue("s{fhi::nb$aa}r hals eller rennende nese")]
-d[variable==3,Symptom:="muskelverk eller hodepine"]
-d[variable==4,Symptom:= "andre symptomer"]
+  d[variable==1,Symptom:="hoste eller tungpust"]
+  d[variable==2,Symptom:=glue::glue("s{fhi::nb$aa}r hals eller rennende nese")]
+  d[variable==3,Symptom:="muskelverk eller hodepine"]
+  d[variable==4,Symptom:= "andre symptomer"]
 
-d[,variable:=NULL]
+  d[,variable:=NULL]
 
-setcolorder(d,c("Symptom"))
+  setcolorder(d,c("Symptom"))
 
-setnames(
-  d,
-  c(
-    "Symptom",
-    "Med feber",
-    "Uten feber"
+  setnames(
+    d,
+    c(
+      "Symptom",
+      "Med feber",
+      "Uten feber"
+    )
   )
-)
 
   last_mod <- pool %>% dplyr::tbl("rundate") %>%
     dplyr::filter(task=="data_covid19_daily_report") %>%
@@ -1199,10 +1571,10 @@ function(req, res, api_key, lang="nb", location_code="norge"){
       n_today_3bedridden_some_help,
       n_today_4bedridden_lots_help)%>%
     dplyr::summarize(n_today_0normal=sum(n_today_0normal),
-                    n_today_1tired=sum(n_today_1tired),
-                    n_today_2need_rest=sum(n_today_2need_rest),
-                    n_today_3bedridden_some_help=sum(n_today_3bedridden_some_help),
-                    n_today_4bedridden_lots_help=sum(n_today_4bedridden_lots_help)) %>%
+                     n_today_1tired=sum(n_today_1tired),
+                     n_today_2need_rest=sum(n_today_2need_rest),
+                     n_today_3bedridden_some_help=sum(n_today_3bedridden_some_help),
+                     n_today_4bedridden_lots_help=sum(n_today_4bedridden_lots_help)) %>%
     dplyr::collect()
   setDT(d)
 
@@ -1258,7 +1630,7 @@ function(req, res, api_key, lang="nb", location_code="norge"){
     dplyr::summarize(
       n_contact_doctor_yes=sum(n_contact_doctor_yes),
       n_contact_doctor_no=sum(n_contact_doctor_no)
-      ) %>%
+    ) %>%
     dplyr::collect()
   setDT(d)
 
