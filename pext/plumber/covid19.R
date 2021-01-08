@@ -1078,6 +1078,115 @@ function(req, res, api_key, prelim=FALSE, lang="nb", location_code="norge"){
   )
 }
 
+#* (L) hc_sysvak_vacc_by_time_location_dose ----
+#* @param location_code location code ("norge" is a common choice)
+#* @param granularity_time day or week
+#* @param lang nb or en
+#* @param prelim TRUE or FALSE
+#* @param api_key api_key
+#* @get /hc_sysvak_vacc_by_time_location_dose
+#* @serializer highcharts
+function(req, res, api_key, prelim=F, lang="nb", granularity_time, location_code){
+  stopifnot(prelim %in% c(T,F))
+  stopifnot(lang %in% c("nb", "en"))
+  stopifnot(granularity_time %in% c("day","week"))
+
+  valid_locations <- unique(fhidata::norway_locations_b2020$county_code)
+  valid_locations <- stringr::str_remove(valid_locations, "county")
+  valid_locations <- c("norge", valid_locations)
+  stopifnot(location_code %in% valid_locations)
+
+  if(stringr::str_length(location_code)==2) location_code <- paste0("county",location_code)
+
+  d <- pool %>% dplyr::tbl(
+    ifelse(
+      prelim,
+      "prelim_data_covid19_sysvak_by_time_location",
+      "data_covid19_sysvak_by_time_location"
+    )) %>%
+    dplyr::filter(granularity_time == !!granularity_time) %>%
+    dplyr::filter(location_code== !!location_code) %>%
+    dplyr::select(yrwk, date, dosenummer, n) %>%
+    dplyr::collect()
+  setDT(d)
+  d[,date:=as.Date(date)]
+  setorder(d, date)
+
+  d[,cum_n := cumsum(n), by = .(dosenummer)]
+
+  d <- dcast.data.table(d, yrwk+date ~ dosenummer,
+                        value.var = c("n","cum_n"))
+
+  setcolorder(d,c("yrwk",
+                  "date",
+                  "cum_n_forste",
+                  "n_forste",
+                  "cum_n_andre",
+                  "n_andre"))
+
+
+  if(granularity_time=="day"){
+    d[, yrwk:=NULL]
+
+    if(lang=="nb"){
+      setnames(
+        d,
+        c(
+          "Dato",
+          "Kumulativt antall personer vaksinert med 1.dose",
+          "Antall personer vaksinert med 1.dose",
+          "Kumulativt antall personer vaksinert med 2.dose",
+          "Antall personer vaksinert med 2.dose"
+        )
+      )
+        } else if(lang=="en"){
+          setnames(
+            d,
+            c("Date",
+              "Cumulative number of people vaccinated with 1st dose",
+              "Number of people vaccinated with 1st dose",
+              "Cumulative number of people vaccinated with 2nd dose",
+              "Number of people vaccinated with 2nd dose"
+
+            )
+          )
+  }
+  } else {
+    d[, date:=NULL]
+    if(lang=="nb"){
+      setnames(
+        d,
+        c(
+          "Uke",
+          "Kumulativt antall personer vaksinert med 1.dose",
+          "Antall personer vaksinert med 1.dose",
+          "Kumulativt antall personer vaksinert med 2.dose",
+          "Antall personer vaksinert med 2.dose"
+        )
+      )    } else {
+        setnames(
+          d,
+          c(
+            "Week",
+            "Cumulative number of people vaccinated with 1st dose",
+            "Number of people vaccinated with 1st dose",
+            "Cumulative number of people vaccinated with 2nd dose",
+            "Number of people vaccinated with 2nd dose"
+
+          )
+        )    }
+  }
+
+  last_mod <- pool %>% dplyr::tbl("rundate") %>%
+    dplyr::filter(task==!!ifelse(prelim,"prelim_data_covid19_daily_report","data_covid19_daily_report")) %>%
+    dplyr::select("datetime") %>%
+    dplyr::collect()
+
+  list(
+    last_modified = last_mod$datetime,
+    data = d
+  )
+}
 
 
 
@@ -1087,6 +1196,121 @@ function(req, res, api_key, prelim=FALSE, lang="nb", location_code="norge"){
 
 
 #* location_code has a "norge"
+
+#* (M) hc_sysvak_vacc_by_time_location ----
+#* @param location_code location code ("norge" is a common choice)
+#* @param granularity_time day or week
+#* @param lang nb or en
+#* @param prelim TRUE or FALSE
+#* @param api_key api_key
+#* @get /hc_sysvak_vacc_by_time_location
+#* @serializer highcharts
+function(req, res, api_key, prelim=F, lang="nb", granularity_time, location_code){
+  stopifnot(prelim %in% c(T,F))
+  stopifnot(lang %in% c("nb", "en"))
+  stopifnot(granularity_time %in% c("day","week"))
+
+  valid_locations <- unique(c(fhidata::norway_locations_b2020$county_code,fhidata::norway_locations_b2020$municip_code))
+  valid_locations <- stringr::str_remove(valid_locations, "county")
+  valid_locations <- stringr::str_remove(valid_locations, "municip")
+
+  valid_locations <- c("norge", valid_locations)
+  stopifnot(location_code %in% valid_locations)
+
+  if(stringr::str_length(location_code)==2) location_code <- paste0("county",location_code)
+
+  d <- pool %>% dplyr::tbl(
+    ifelse(
+      prelim,
+      "prelim_data_covid19_sysvak_by_time_location",
+      "data_covid19_sysvak_by_time_location"
+    )) %>%
+    dplyr::filter(granularity_time == !!granularity_time) %>%
+    dplyr::filter(location_code== !!location_code) %>%
+    dplyr::select(yrwk, date, dosenummer, n) %>%
+    dplyr::collect()
+  setDT(d)
+  d[,date:=as.Date(date)]
+  setorder(d, date)
+
+  d <- d[dosenummer=="forste"]
+
+  d[,cum_n := cumsum(n)]
+
+  d <- dcast.data.table(d, yrwk+date ~ dosenummer,
+                        value.var = c("n","cum_n"))
+
+  setcolorder(d,c("yrwk",
+                  "date",
+                  "cum_n_forste",
+                  "n_forste"))
+
+
+  if(granularity_time=="day"){
+    d[, yrwk:=NULL]
+
+    if(lang=="nb"){
+      setnames(
+        d,
+        c(
+          "Dato",
+          "Kumulativt antall personer vaksinert med 1.dose",
+          "Antall personer vaksinert med 1.dose"
+        )
+      )
+    } else if(lang=="en"){
+      setnames(
+        d,
+        c("Date",
+          "Cumulative number of people vaccinated with 1st dose",
+          "Number of people vaccinated with 1st dose"
+
+        )
+      )
+    }
+  } else {
+    d[, date:=NULL]
+    if(lang=="nb"){
+      setnames(
+        d,
+        c(
+          "Uke",
+          "Kumulativt antall personer vaksinert med 1.dose",
+          "Antall personer vaksinert med 1.dose"
+        )
+      )    } else {
+        setnames(
+          d,
+          c(
+            "Week",
+            "Cumulative number of people vaccinated with 1st dose",
+            "Number of people vaccinated with 1st dose"
+
+          )
+        )    }
+  }
+
+  last_mod <- pool %>% dplyr::tbl("rundate") %>%
+    dplyr::filter(task==!!ifelse(prelim,"prelim_data_covid19_daily_report","data_covid19_daily_report")) %>%
+    dplyr::select("datetime") %>%
+    dplyr::collect()
+
+  list(
+    last_modified = last_mod$datetime,
+    data = d
+  )
+}
+
+
+
+
+
+
+
+
+#* location_code has a "norge"
+
+
 #* SELV (1) hc_sr_symptoms_by_time ----
 #* These are the locations and location names
 #* @param lang nb
